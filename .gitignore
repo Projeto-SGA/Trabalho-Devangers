@@ -1,0 +1,43 @@
+# Ambientes virtuais e arquivos de ambiente
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Credenciais e certificados
+secrets/
+**/secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+firebase-adminsdk*.json
+
+# Cache e artefatos do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs, bancos locais e arquivos temporários
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.tmp
+*.temp
