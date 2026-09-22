@@ -8,6 +8,7 @@ Gerencia session state + chamadas para o model.
 
 import streamlit as st
 from models import auth_model
+from controllers import session_controller
 
 
 def init_auth_state():
@@ -26,6 +27,9 @@ def init_auth_state():
     
     if 'user_perfil' not in st.session_state:
         st.session_state.user_perfil = None
+
+    if 'current_user' not in st.session_state:
+        st.session_state.current_user = None
 
 
 def is_logged_in():
@@ -56,8 +60,26 @@ def fazer_login(email: str):
         st.session_state.user_nome = perfil.get('nome')
         st.session_state.user_role = perfil.get('role')
         st.session_state.user_perfil = perfil
+        st.session_state.current_user = perfil
+        session_controller.goto("menu")
     
     return sucesso, mensagem
+
+
+def login_demo(user: dict):
+    """Entra com um perfil local de demonstração, sem exigir conta Firebase."""
+    init_auth_state()
+    demo_profile = dict(user)
+    demo_profile["uid"] = f"demo:{user['email']}"
+    demo_profile["ativo"] = True
+
+    st.session_state.user_uid = demo_profile["uid"]
+    st.session_state.user_email = demo_profile["email"]
+    st.session_state.user_nome = demo_profile["nome"]
+    st.session_state.user_role = demo_profile["role"]
+    st.session_state.user_perfil = demo_profile
+    st.session_state.current_user = demo_profile
+    session_controller.goto("menu")
 
 
 def fazer_registro(email: str, senha: str, nome: str):
@@ -87,6 +109,12 @@ def fazer_logout():
     st.session_state.user_nome = None
     st.session_state.user_role = None
     st.session_state.user_perfil = None
+    st.session_state.current_user = None
+
+
+def logout():
+    """Alias mantido para as views que usam a nomenclatura antiga."""
+    fazer_logout()
 
 
 def atualizar_perfil(dados: dict):
@@ -139,6 +167,12 @@ def tem_permissao(permissao: str) -> bool:
         return False
     
     role = st.session_state.get('user_role', 'usuario')
+    role = {
+        'Aluno': 'usuario',
+        'Professor': 'professor',
+        'Coordenador': 'admin',
+        'Administrador': 'admin',
+    }.get(role, role)
     
     # Mapa de permissões por papel
     permissoes = {
@@ -158,3 +192,8 @@ def obter_info_usuario():
         'nome': st.session_state.get('user_nome'),
         'role': st.session_state.get('user_role'),
     }
+
+
+def current_user():
+    """Retorna o perfil compatível com as views legadas do aplicativo."""
+    return st.session_state.get('current_user') or st.session_state.get('user_perfil') or {}

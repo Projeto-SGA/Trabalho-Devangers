@@ -33,6 +33,7 @@ if 'firestore_db' not in st.session_state:
         st.error(f"❌ Erro ao conectar Firebase: {e}")
 
 # Inicializa autenticação
+session_controller.init_state()
 auth_controller.init_auth_state()
 
 inject_css()
