@@ -8,6 +8,7 @@ Gerencia session state + chamadas para o model.
 
 import streamlit as st
 from models import auth_model
+from models import permissions_model
 from controllers import session_controller
 
 
@@ -137,6 +138,32 @@ def atualizar_perfil(dados: dict):
     return sucesso, mensagem
 
 
+def update_current_user_profile(nome: str, email: str):
+    """Atualiza nome e e-mail no perfil usado pelas configurações."""
+    nome = nome.strip()
+    email = email.strip()
+    if not nome or not email:
+        return "Nome e e-mail são obrigatórios."
+
+    user = current_user()
+    if user.get('uid', '').startswith('demo:'):
+        user.update({'nome': nome, 'email': email})
+        st.session_state.user_nome = nome
+        st.session_state.user_email = email
+        st.session_state.user_perfil = user
+        st.session_state.current_user = user
+        return None
+
+    sucesso, mensagem = atualizar_perfil({'nome': nome, 'email': email})
+    if sucesso:
+        st.session_state.user_nome = nome
+        st.session_state.user_email = email
+        st.session_state.user_perfil.update({'nome': nome, 'email': email})
+        st.session_state.current_user = st.session_state.user_perfil
+        return None
+    return mensagem
+
+
 def deletar_conta():
     """
     Deleta conta do usuário logado
@@ -182,6 +209,29 @@ def tem_permissao(permissao: str) -> bool:
     }
     
     return permissao in permissoes.get(role, [])
+
+
+def permissions() -> dict:
+    """Retorna as permissões do papel atual para as views do aplicativo."""
+    role = st.session_state.get('user_role')
+    if role in ('usuario', 'professor', 'admin'):
+        role = {
+            'usuario': 'Aluno',
+            'professor': 'Professor',
+            'admin': 'Administrador',
+        }[role]
+    return permissions_model.get_permissions(role)
+
+
+def has_perm(permissao: str) -> bool:
+    """Verifica uma permissão pelo nome usado na matriz de permissões."""
+    role = st.session_state.get('user_role')
+    return permissions_model.has_permission(role, permissao)
+
+
+def is_admin() -> bool:
+    """Indica se o usuário atual possui o papel de administrador."""
+    return permissions_model.is_admin_role(st.session_state.get('user_role'))
 
 
 def obter_info_usuario():

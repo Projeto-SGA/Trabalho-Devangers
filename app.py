@@ -87,8 +87,8 @@ def main():
         layout_view.render_unauthorized()
         return
     
-    module_name = VIEW_MODULES.get(route, "menu")
-    if module_name in VIEW_MODULES:
+    module_name = VIEW_MODULES.get(route)
+    if module_name:
         try:
             module = __import__(f"views.{module_name}", fromlist=[module_name])
             module.render()
