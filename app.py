@@ -19,7 +19,12 @@ from views import auth_view, layout_view
 from views.components import inject_css
 from utils.firebase_utils import init_firestore
 
-st.set_page_config(page_title="SGA — Sistema de Gestão de Ambientes", page_icon="🏫", layout="wide")
+st.set_page_config(
+    page_title="SGA — Sistema de Gestão de Ambientes",
+    page_icon="🏫",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 # Definir caminho correto do projeto (onde app.py está)
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))

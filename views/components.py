@@ -28,7 +28,7 @@ def inject_css():
         f"""
         <style>
         .stApp {{ background-color: {BG}; }}
-        #MainMenu, footer, header {{ visibility: hidden; }}
+        #MainMenu, footer {{ visibility: hidden; }}
         .block-container {{ padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1200px; }}
 
         /* Sidebar look */
