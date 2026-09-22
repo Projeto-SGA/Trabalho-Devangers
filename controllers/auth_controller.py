@@ -1,110 +1,160 @@
 # -*- coding: utf-8 -*-
 """
-[CONTROLLER] Autenticação, permissões e auto-cadastro.
+controllers/auth_controller.py
 
-Faz a ponte entre as Views de Login/Configurações e os Models de
-permissões, validação e membro.
+Controller para autenticação.
+Gerencia session state + chamadas para o model.
 """
 
-import copy
-
 import streamlit as st
-
-from models import seed_data as data
-from models import membro_model, permissions_model, validators
+from models import auth_model
 
 
-# ── Sessão do usuário atual ──────────────────────────────────────────────────
-
-def current_user() -> dict:
-    return st.session_state.current_user
-
-
-def permissions() -> dict:
-    return permissions_model.get_permissions(current_user()["role"])
-
-
-def has_perm(key: str) -> bool:
-    return permissions_model.has_permission(current_user()["role"], key)
-
-
-def is_admin() -> bool:
-    return permissions_model.is_admin_role(current_user()["role"])
-
-
-def login_as(user: dict) -> None:
-    st.session_state.current_user = copy.deepcopy(user)
-    st.session_state.logged_in = True
-    st.session_state.route = "menu"
+def init_auth_state():
+    """Inicializa estado de autenticação na sessão"""
+    if 'user_uid' not in st.session_state:
+        st.session_state.user_uid = None
+    
+    if 'user_email' not in st.session_state:
+        st.session_state.user_email = None
+    
+    if 'user_nome' not in st.session_state:
+        st.session_state.user_nome = None
+    
+    if 'user_role' not in st.session_state:
+        st.session_state.user_role = None
+    
+    if 'user_perfil' not in st.session_state:
+        st.session_state.user_perfil = None
 
 
-def logout() -> None:
-    st.session_state.current_user = copy.deepcopy(data.DEMO_USERS[0])
-    st.session_state.logged_in = False
-    st.session_state.route = "login"
+def is_logged_in():
+    """Verifica se usuário está logado"""
+    return st.session_state.get('user_uid') is not None
 
 
-def demo_users() -> list:
-    return data.DEMO_USERS
+def fazer_login(email: str):
+    """
+    Processa login do usuário
+    
+    Returns:
+        tuple: (sucesso: bool, mensagem: str)
+    """
+    init_auth_state()
+    
+    if not email:
+        return False, "Email é obrigatório"
+    
+    sucesso, uid, mensagem = auth_model.fazer_login(email)
+    
+    if sucesso:
+        # Obter perfil e armazenar em sessão
+        perfil = auth_model.obter_perfil_usuario(uid)
+        
+        st.session_state.user_uid = uid
+        st.session_state.user_email = email
+        st.session_state.user_nome = perfil.get('nome')
+        st.session_state.user_role = perfil.get('role')
+        st.session_state.user_perfil = perfil
+    
+    return sucesso, mensagem
 
 
-def role_description(role: str) -> str:
-    return data.ROLE_DESCRIPTIONS.get(role, "")
+def fazer_registro(email: str, senha: str, nome: str):
+    """
+    Processa registro de novo usuário
+    
+    Returns:
+        tuple: (sucesso: bool, mensagem: str)
+    """
+    init_auth_state()
+    
+    sucesso, uid, mensagem = auth_model.criar_nova_conta(email, senha, nome)
+    
+    if sucesso:
+        st.session_state.user_uid = uid
+        st.session_state.user_email = email
+        st.session_state.user_nome = nome
+        st.session_state.user_role = 'usuario'
+    
+    return sucesso, mensagem
 
 
-def update_current_user_profile(nome: str, email: str) -> str:
-    """Atualiza nome/e-mail do usuário logado. Devolve erro (vazio = ok)."""
-    if not nome.strip():
-        return "O nome não pode estar vazio."
-    if "@" not in email:
-        return "Informe um e-mail válido."
-    user = current_user()
-    user["nome"] = nome
-    user["email"] = email
-    return ""
+def fazer_logout():
+    """Faz logout do usuário"""
+    st.session_state.user_uid = None
+    st.session_state.user_email = None
+    st.session_state.user_nome = None
+    st.session_state.user_role = None
+    st.session_state.user_perfil = None
 
 
-# ── Cadastro de nova conta (registro em 2 etapas) ────────────────────────────
-
-def validate_step1(nome: str, email: str, cpf: str, senha: str, confirmar: str) -> str:
-    """Valida a etapa 1 do formulário de cadastro. Devolve erro (vazio = ok)."""
-    err = validators.validate_nome(nome)
-    if not err:
-        err = validators.validate_email(email)
-    if not err and validators.email_already_registered(email, st.session_state.members):
-        err = "Este e-mail já está cadastrado no sistema."
-    if not err:
-        err = validators.validate_cpf(cpf)
-    if not err and validators.cpf_already_registered(cpf, st.session_state.members):
-        err = "Este CPF já está cadastrado no sistema."
-    if not err and not senha:
-        err = "Informe uma senha."
-    if not err and len(senha) < 6:
-        err = "A senha deve ter ao menos 6 caracteres."
-    if not err and senha != confirmar:
-        err = "As senhas não coincidem."
-    return err
+def atualizar_perfil(dados: dict):
+    """
+    Atualiza perfil do usuário logado
+    
+    Returns:
+        tuple: (sucesso: bool, mensagem: str)
+    """
+    if not is_logged_in():
+        return False, "Usuário não está logado"
+    
+    uid = st.session_state.user_uid
+    sucesso, mensagem = auth_model.atualizar_perfil(uid, dados)
+    
+    if sucesso:
+        # Recarregar perfil
+        st.session_state.user_perfil = auth_model.obter_perfil_usuario(uid)
+    
+    return sucesso, mensagem
 
 
-def nucleos_ativos_nomes() -> list:
-    return [n["nome"] for n in st.session_state.nucleos if n["ativo"]]
+def deletar_conta():
+    """
+    Deleta conta do usuário logado
+    
+    Returns:
+        tuple: (sucesso: bool, mensagem: str)
+    """
+    if not is_logged_in():
+        return False, "Usuário não está logado"
+    
+    uid = st.session_state.user_uid
+    sucesso, mensagem = auth_model.deletar_conta_completa(uid)
+    
+    if sucesso:
+        fazer_logout()
+    
+    return sucesso, mensagem
 
 
-def submit_registration(form: dict, disciplinas: list) -> None:
-    """Envia o cadastro como membro pendente de aprovação (etapa 2)."""
-    ss = st.session_state
-    novo, ss._next_member_id = membro_model.add_pending_member(
-        ss.members, ss._next_member_id,
-        {
-            "nome": form["nome"].strip(),
-            "email": form["email"].strip(),
-            "cpf": form["cpf"],
-            "funcao": form["funcao"],
-            "depto": form["nucleo"],
-            "nucleo": form["nucleo"],
-            "curso": form["curso"],
-            "turno": form["turno"],
-            "turma": form["turma"],
-            "disciplinas": disciplinas,
-        },
-    )
+def tem_permissao(permissao: str) -> bool:
+    """
+    Verifica se usuário tem determinada permissão
+    
+    Args:
+        permissao: Nome da permissão (ex: 'admin', 'professor')
+    """
+    if not is_logged_in():
+        return False
+    
+    role = st.session_state.get('user_role', 'usuario')
+    
+    # Mapa de permissões por papel
+    permissoes = {
+        'usuario': ['ver_agenda', 'fazer_reservas'],
+        'professor': ['ver_agenda', 'fazer_reservas', 'gerenciar_aulas'],
+        'admin': ['ver_agenda', 'fazer_reservas', 'gerenciar_aulas', 'gerenciar_usuarios'],
+    }
+    
+    return permissao in permissoes.get(role, [])
+
+
+def obter_info_usuario():
+    """Retorna informações do usuário logado"""
+    return {
+        'uid': st.session_state.get('user_uid'),
+        'email': st.session_state.get('user_email'),
+        'nome': st.session_state.get('user_nome'),
+        'role': st.session_state.get('user_role'),
+    }
