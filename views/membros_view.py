@@ -121,7 +121,11 @@ def render():
         c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
         search = c1.text_input("Buscar por nome ou e-mail", key="mem_search")
         filtro_funcao = c2.selectbox("Função", ["Todos"] + data.FUNCOES, key="mem_funcao")
-        filtro_status = c3.selectbox("Status", ["Todos", "Ativo", "Inativo", "Pendente"], key="mem_status")
+        filtro_status = c3.selectbox(
+    "Status",
+    ["Todos", "Ativo", "Inativo", "Pendente", "Aguardando Correção"],
+    key="mem_status"
+)
         filtro_nucleo = c4.selectbox("Núcleo", ["Todos", "Global"] + data.NUCLEOS, key="mem_nucleo") if is_admin else "Todos"
 
         filtered = mc.filter_members(search, filtro_funcao, filtro_status, filtro_nucleo)
